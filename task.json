@@ -1,35 +1,100 @@
 {
   "atomCode": "mail",
   "name": "Send email",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sends a templated email from the build over SMTP, with optional HTML body and attachments (mailer + the common part of email-ext).",
   "execution": {
     "packagePath": "mail.jar",
     "language": "java",
-    "target": "$atom_java_path -cp mail.jar MailAtom"
+    "target": "$atom_java_path -cp mail.jar com.jenkinschina.atom.sdk.AtomRunner"
   },
   "input": {
-    "to": { "label": "收件人（逗号分隔，支持 ${ENV}）", "type": "vuex-input", "required": true },
-    "cc": { "label": "抄送（可选）", "type": "vuex-input", "default": "" },
-    "from": { "label": "发件人（留空则用 SMTP 用户名）", "type": "vuex-input", "default": "" },
-    "subject": { "label": "主题（支持 ${ENV}）", "type": "vuex-input", "default": "[Jenkins] ${JOB_NAME} #${BUILD_NUMBER}" },
-    "body": { "label": "正文（支持 ${ENV}）", "type": "textarea", "default": "" },
-    "html": { "label": "正文是 HTML", "type": "checkbox", "default": "false" },
-    "attachments": { "label": "附件（workspace 相对路径，逗号分隔）", "type": "vuex-input", "default": "" },
-    "smtpHost": { "label": "SMTP 主机", "type": "vuex-input", "required": true },
-    "smtpPort": { "label": "SMTP 端口", "type": "vuex-input-number", "default": "587" },
-    "tls": { "label": "强制 TLS（STARTTLS/SMTPS）", "type": "checkbox", "default": "true" },
-    "user": { "label": "SMTP 用户名（Jenkins 凭据 id）", "type": "vuex-input", "isSensitive": true, "default": "" },
-    "password": { "label": "SMTP 密码（Jenkins 凭据 id）", "type": "vuex-input", "isSensitive": true, "default": "" },
-    "dryRun": { "label": "只生成邮件不发送（调试用）", "type": "checkbox", "default": "false" }
+    "to": {
+      "label": "收件人（逗号分隔，支持 ${ENV}）",
+      "type": "vuex-input",
+      "required": true
+    },
+    "cc": {
+      "label": "抄送（可选）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "from": {
+      "label": "发件人（留空则用 SMTP 用户名）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "subject": {
+      "label": "主题（支持 ${ENV}）",
+      "type": "vuex-input",
+      "default": "[Jenkins] ${JOB_NAME} #${BUILD_NUMBER}"
+    },
+    "body": {
+      "label": "正文（支持 ${ENV}）",
+      "type": "textarea",
+      "default": ""
+    },
+    "html": {
+      "label": "正文是 HTML",
+      "type": "checkbox",
+      "default": "false"
+    },
+    "attachments": {
+      "label": "附件（workspace 相对路径，逗号分隔）",
+      "type": "vuex-input",
+      "default": ""
+    },
+    "smtpHost": {
+      "label": "SMTP 主机",
+      "type": "vuex-input",
+      "required": true
+    },
+    "smtpPort": {
+      "label": "SMTP 端口",
+      "type": "vuex-input-number",
+      "default": "587"
+    },
+    "tls": {
+      "label": "强制 TLS（STARTTLS/SMTPS）",
+      "type": "checkbox",
+      "default": "true"
+    },
+    "user": {
+      "label": "SMTP 用户名（Jenkins 凭据 id）",
+      "type": "vuex-input",
+      "isSensitive": true,
+      "default": ""
+    },
+    "password": {
+      "label": "SMTP 密码（Jenkins 凭据 id）",
+      "type": "vuex-input",
+      "isSensitive": true,
+      "default": ""
+    },
+    "dryRun": {
+      "label": "只生成邮件不发送（调试用）",
+      "type": "checkbox",
+      "default": "false"
+    }
   },
   "output": {
-    "recipients": { "type": "string", "description": "实际收件人列表" },
-    "emlFile": { "type": "artifact", "description": "生成的邮件原文（dryRun 或发送后都保留）" }
+    "recipients": {
+      "type": "string",
+      "description": "实际收件人列表"
+    },
+    "emlFile": {
+      "type": "artifact",
+      "description": "生成的邮件原文（dryRun 或发送后都保留）"
+    }
   },
   "x-jenkins": {
     "protocol": "jenkins-1",
-    "secrets": { "user": "", "password": "" },
-    "requires": { "runner": ">=0.3.0" }
+    "secrets": {
+      "user": "",
+      "password": ""
+    },
+    "requires": {
+      "runner": ">=0.3.0"
+    }
   }
 }
