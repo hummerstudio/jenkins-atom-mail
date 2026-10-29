@@ -1,0 +1,8 @@
+{
+  "name": "Send email",
+  "summary": "把 mailer / email-ext 常用能力变成一个原子：模板主题正文、HTML、附件、SMTP 凭据。",
+  "author": "hummerstudio",
+  "license": "MIT",
+  "tags": ["email", "notification", "official-port"],
+  "homepage": "https://github.com/hummerstudio/jenkins-atom-mail"
+}
