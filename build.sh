@@ -13,10 +13,11 @@ else
 fi
 
 if [ -z "${SDK_JAR:-}" ]; then
-  for candidate in ../jenkins-atom-sdk/target/jenkins-atom-sdk-0.2.0.jar \
-                   ./jenkins-atom-sdk/target/jenkins-atom-sdk-0.2.0.jar; do
-    [ -f "$candidate" ] && { SDK_JAR="$candidate"; break; }
-  done
+  # newest sibling build: the SDK version moves, the atom should not have to know which one it is
+  SDK_JAR="$(ls -1t ../jenkins-atom-sdk/target/jenkins-atom-sdk-*.jar 2>/dev/null | head -1 || true)"
+  if [ -z "$SDK_JAR" ]; then
+    SDK_JAR="$(ls -1t ./jenkins-atom-sdk/target/jenkins-atom-sdk-*.jar 2>/dev/null | head -1 || true)"
+  fi
 fi
 SDK_JAR="${SDK_JAR:-}"
 [ -f "${SDK_JAR:-/nonexistent}" ] || {
