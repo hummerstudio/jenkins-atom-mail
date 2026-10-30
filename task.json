@@ -1,8 +1,8 @@
 {
   "atomCode": "mail",
   "name": "Send email",
-  "version": "1.2.0",
-  "description": "Sends a templated email from the build over SMTP, with optional HTML body and attachments (mailer + the common part of email-ext).",
+  "version": "2.0.0",
+  "description": "Sends a templated email over SMTP. Covers mailer and the part of email-ext people actually use: $BUILD_LOG_EXCERPT, $FAILED_TESTS, $CHANGES tokens in the subject and body.",
   "execution": {
     "packagePath": "mail.jar",
     "language": "java",
@@ -27,10 +27,10 @@
     "subject": {
       "label": "主题（支持 ${ENV}）",
       "type": "vuex-input",
-      "default": "[Jenkins] ${JOB_NAME} #${BUILD_NUMBER}"
+      "default": "[Jenkins] $PROJECT_NAME #$BUILD_NUMBER - $BUILD_STATUS"
     },
     "body": {
-      "label": "正文（支持 ${ENV}）",
+      "label": "正文（支持 $BUILD_LOG_EXCERPT / $FAILED_TESTS / $CHANGES 与 ${ENV}）",
       "type": "textarea",
       "default": ""
     },
@@ -95,6 +95,9 @@
     },
     "requires": {
       "runner": ">=0.3.0"
-    }
+    },
+    "context": [
+      "log"
+    ]
   }
 }

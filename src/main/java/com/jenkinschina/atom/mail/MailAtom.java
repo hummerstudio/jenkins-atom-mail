@@ -27,11 +27,13 @@ public class MailAtom implements AtomTask {
 
     @Override
     public AtomResult run(AtomContext context) throws Exception {
+        Path workspace = context.getWorkspace();
         String to = expand(context, context.getParam("to", ""));
         String cc = expand(context, context.getParam("cc", ""));
         String from = expand(context, context.getParam("from", ""));
-        String subject = expand(context, context.getParam("subject", "[Jenkins] ${JOB_NAME} #${BUILD_NUMBER}"));
-        String body = expand(context, context.getParam("body", ""));
+        String subject = expand(context, workspace,
+                context.getParam("subject", "[Jenkins] $PROJECT_NAME #$BUILD_NUMBER - $BUILD_STATUS"));
+        String body = expand(context, workspace, context.getParam("body", ""));
         boolean html = context.getBooleanParam("html", false);
         String attachments = expand(context, context.getParam("attachments", ""));
         String host = context.getParam("smtpHost", "");
@@ -52,7 +54,6 @@ public class MailAtom implements AtomTask {
             from = user.isBlank() ? "jenkins@localhost" : user;
         }
 
-        Path workspace = context.getWorkspace();
         List<Path> files = new ArrayList<>();
         for (String part : attachments.split(",")) {
             String name = part.trim();
@@ -179,6 +180,122 @@ public class MailAtom implements AtomTask {
             }
         }
         return result;
+    }
+
+    /**
+     * email-ext's tokens, on top of the {@code ${ENV}} form the atom already had: the tail of the console log, the
+     * failed tests from the JUnit XML in the workspace, and the commits since the previous build.
+     */
+    private String expand(AtomContext context, java.nio.file.Path workspace, String template) throws Exception {
+        java.util.regex.Pattern token = java.util.regex.Pattern.compile(
+                "\\$(?:\\{([A-Z_0-9]+)(?:,([^}]*))?}|([A-Z_0-9]{3,}))");
+        java.util.regex.Matcher matcher = token.matcher(template == null ? "" : template);
+        StringBuilder out = new StringBuilder();
+        while (matcher.find()) {
+            String name = matcher.group(1) != null ? matcher.group(1) : matcher.group(3);
+            String argument = matcher.group(2);
+            String value = switch (name) {
+                case "PROJECT_NAME" -> context.getParam("JOB_NAME", "");
+                case "BUILD_NUMBER" -> context.getParam("BUILD_NUMBER", "");
+                case "BUILD_URL" -> context.getParam("BUILD_URL", "");
+                case "BUILD_STATUS", "BUILD_RESULT" -> context.getParam("BUILD_STATUS", "");
+                case "BUILD_LOG_EXCERPT" -> logExcerpt(context, argument);
+                case "FAILED_TESTS" -> failedTests(workspace);
+                case "CHANGES" -> changes(workspace, argument);
+                default -> null;
+            };
+            matcher.appendReplacement(out, Matcher.quoteReplacement(value == null ? matcher.group() : value));
+        }
+        matcher.appendTail(out);
+        return expand(context, out.toString());
+    }
+
+    private static String logExcerpt(AtomContext context, String argument) {
+        String text;
+        try {
+            text = context.hasBuildLog() ? context.buildLog() : "";
+        } catch (Exception e) {
+            return "(no build log available)";
+        }
+        if (text.isBlank()) {
+            return "(no build log available)";
+        }
+        int lines = 50;
+        if (argument != null && !argument.isBlank()) {
+            try {
+                lines = Integer.parseInt(argument.trim());
+            } catch (NumberFormatException ignored) {
+                // a bad argument must not break an email
+            }
+        }
+        String[] all = text.split("\n");
+        StringBuilder out = new StringBuilder();
+        for (int i = Math.max(0, all.length - lines); i < all.length; i++) {
+            out.append(all[i]).append('\n');
+        }
+        String excerpt = out.toString();
+        return excerpt.length() > 8000 ? excerpt.substring(excerpt.length() - 8000) : excerpt;
+    }
+
+    private static String failedTests(java.nio.file.Path workspace) throws Exception {
+        StringBuilder out = new StringBuilder();
+        int shown = 0;
+        try (var walk = java.nio.file.Files.walk(workspace, 12)) {
+            for (java.nio.file.Path file : walk.filter(java.nio.file.Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().startsWith("TEST-")
+                            && path.toString().endsWith(".xml"))
+                    .sorted().limit(50).toList()) {
+                shown += appendFailing(file, out, 20 - shown);
+            }
+        } catch (Exception ignored) {
+            // no reports is not an error for an email
+        }
+        return shown == 0 ? "(no failed tests found)" : out.toString();
+    }
+
+    private static int appendFailing(java.nio.file.Path file, StringBuilder out, int room) {
+        int shown = 0;
+        try {
+            javax.xml.parsers.DocumentBuilderFactory factory =
+                    javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            var document = factory.newDocumentBuilder().parse(file.toFile());
+            var cases = document.getElementsByTagName("testcase");
+            for (int i = 0; i < cases.getLength() && shown < Math.max(0, room); i++) {
+                var test = (org.w3c.dom.Element) cases.item(i);
+                if (test.getElementsByTagName("failure").getLength() > 0
+                        || test.getElementsByTagName("error").getLength() > 0) {
+                    out.append("- ").append(test.getAttribute("classname")).append('#')
+                            .append(test.getAttribute("name")).append('\n');
+                    shown++;
+                }
+            }
+        } catch (Exception ignored) {
+            // an unreadable report contributes nothing
+        }
+        return shown;
+    }
+
+    private static String changes(java.nio.file.Path workspace, String argument) {
+        int count = 10;
+        if (argument != null && !argument.isBlank()) {
+            try {
+                count = Integer.parseInt(argument.trim());
+            } catch (NumberFormatException ignored) {
+                // default
+            }
+        }
+        try {
+            ProcessBuilder builder = new ProcessBuilder("git", "log",
+                    "-" + Math.max(1, Math.min(count, 50)), "--pretty=- %s (%an)")
+                    .directory(workspace.toFile()).redirectErrorStream(true);
+            Process process = builder.start();
+            String log = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
+            process.waitFor();
+            return log.isBlank() ? "(no commits)" : log;
+        } catch (Exception e) {
+            return "(git not available)";
+        }
     }
 
     private static String expand(AtomContext context, String template) {

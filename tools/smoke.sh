@@ -83,4 +83,25 @@ JSON
 if run "$dir" >/dev/null 2>&1; then fail "missing attachment must fail"; fi
 grep -q 'attachment not found: reports/nope.txt' "$dir/output.json" || fail "attachment error is not readable"
 
-echo "smoke ok: text+attachment, utf8 subject, no recipients, missing attachment"
+# tokens: log excerpt and failed tests come from what the build left behind
+dir="$(mktemp -d)"; mkdir -p "$dir/target/surefire-reports"
+printf '<testsuite tests="1" failures="1"><testcase classname="demo.A" name="red"><failure message="boom"/></testcase></testsuite>' \
+  >"$dir/target/surefire-reports/TEST-a.xml"
+printf 'first line\nERROR something broke\n' >"$dir/build.log"
+printf '{"to": "dev@example.com", "dryRun": "true", "subject": "#$BUILD_NUMBER $BUILD_STATUS", "body": "$BUILD_LOG_EXCERPT\\n$FAILED_TESTS"}' >"$dir/input.json"
+export atom_build_log="$dir/build.log" BUILD_STATUS=FAILURE JOB_NAME=parcel
+run "$dir" >"$dir/log.txt" 2>&1 || fail "token run failed: $(cat "$dir/log.txt")"
+unset atom_build_log BUILD_STATUS
+eml=$(find "$dir" -name message.eml | head -1)
+[ -n "$eml" ] || fail "no message.eml"
+python3 - "$eml" <<'PY'
+import email, sys
+msg = email.message_from_bytes(open(sys.argv[1], 'rb').read())
+body = msg.get_payload(decode=True).decode()
+assert "#7 FAILURE" in msg['Subject'], msg['Subject']
+assert "ERROR something broke" in body, body
+assert "demo.A#red" in body, body
+PY
+
+echo "smoke ok: text+attachment, utf8 subject, tokens, no recipients, missing attachment"
+
