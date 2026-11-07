@@ -286,7 +286,11 @@ public class MailAtom implements AtomTask {
             }
         }
         try {
-            ProcessBuilder builder = new ProcessBuilder("git", "log",
+            String git = gitExecutable();
+            if (git == null) {
+                return "(git not available)";
+            }
+            ProcessBuilder builder = new ProcessBuilder(git, "log",
                     "-" + Math.max(1, Math.min(count, 50)), "--pretty=- %s (%an)")
                     .directory(workspace.toFile()).redirectErrorStream(true);
             Process process = builder.start();
@@ -294,8 +298,39 @@ public class MailAtom implements AtomTask {
             process.waitFor();
             return log.isBlank() ? "(no commits)" : log;
         } catch (Exception e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             return "(git not available)";
         }
+    }
+
+    /**
+     * Resolves {@code git} from PATH ourselves instead of letting the OS resolve a bare name at exec time, so the
+     * binary that runs is the absolute path of the first executable file found on PATH and nothing else. Agents put git
+     * wherever their image put it, so the location cannot be hard-coded; the lookup stays restricted to PATH entries
+     * and every candidate is validated as a regular, executable file before it is used.
+     */
+    private static String gitExecutable() {
+        String path = System.getenv("PATH");
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+        for (String entry : path.split(java.util.regex.Pattern.quote(java.io.File.pathSeparator))) {
+            if (entry.isBlank()) {
+                continue;
+            }
+            Path dir = Path.of(entry);
+            if (!dir.isAbsolute()) {
+                // a blank or relative PATH entry means "the current directory", which is exactly what must not be used
+                continue;
+            }
+            Path candidate = dir.resolve("git");
+            if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
+                return candidate.toAbsolutePath().toString();
+            }
+        }
+        return null;
     }
 
     private static String expand(AtomContext context, String template) {
