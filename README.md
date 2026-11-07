@@ -8,8 +8,8 @@ option, and attachments.
 * `html` — send the body as `text/html`.
 * `attachments` — workspace-relative paths; missing files are named in the error, not a stack trace.
 * `smtpHost` / `smtpPort` / `tls`, plus `user` / `password` as Jenkins credentials ids.
-* `dryRun` — build the message and keep `message.eml` as an artifact without sending: that is what the smoke test
-  asserts, so CI needs no SMTP server.
+* `dryRun` — build the message and keep `message.eml` as an artifact without sending: that is what the tests
+  assert, so CI needs no SMTP server.
 
 Delivery is `curl` over SMTP (`smtps://` when `tls` is on), which every agent has; the MIME is built here, so there is
 no `javax.mail` in the package.
@@ -19,11 +19,11 @@ no `javax.mail` in the package.
 email-ext's triggers ("only when the build fails", "every 5th build"), its Groovy/Jelly templates, and its recipient
 providers. In a pipeline those are the `post { failure { … } }` block around the step — which is where they belong.
 
-## Build and smoke test
+## Build and test
 
 ```bash
-./build.sh             # → dist/mail/{mail.jar,task.json}
-./tools/smoke.sh       # text+attachment, encoded non-ASCII subject, no recipients, missing attachment
+mvn verify             # → target/dist/mail/{mail.jar,task.json}; the JUnit tests cover
+                       # text+attachment, encoded non-ASCII subject, no recipients, missing attachment
 ```
 
 ## Publish
