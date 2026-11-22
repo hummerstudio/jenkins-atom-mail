@@ -1,7 +1,7 @@
 {
   "atomCode": "mail",
   "name": "Send email",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Sends a templated email over SMTP. Covers mailer and the part of email-ext people actually use: $BUILD_LOG_EXCERPT, $FAILED_TESTS, $CHANGES tokens in the subject and body.",
   "execution": {
     "packagePath": "mail.jar",
@@ -106,7 +106,7 @@
       "password": ""
     },
     "requires": {
-      "runner": ">=0.3.0"
+      "runner": ">=0.4.0"
     },
     "context": [
       "log"
