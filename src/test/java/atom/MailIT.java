@@ -65,6 +65,29 @@ class MailIT {
     }
 
     @Test
+    @DisplayName("mail-ext's smtpUser/smtpPassword work, and the original user/password still do")
+    void acceptsBothCredentialSpellings() throws Exception {
+        String fakeCurl = """
+                #!/bin/sh
+                echo "fake curl $*"
+                """;
+        for (String[] names : new String[][] {{"smtpUser", "smtpPassword"}, {"user", "password"}}) {
+            AtomResult run = atom.bin("curl", fakeCurl)
+                    .input("to", "dev@example.com")
+                    .input("from", "ci@example.com")
+                    .input("subject", "credential spellings")
+                    .input("body", "x")
+                    .input("smtpHost", "smtp.example.com")
+                    .input(names[0], "bot@example.com")
+                    .input(names[1], "secret")
+                    .input("dryRun", "false")
+                    .run();
+            run.assertOk();
+            assertTrue(run.console().contains("--user bot@example.com:secret"),
+                    names[0] + " did not reach curl as --user:\n" + run.console());
+        }
+    }
+
     @DisplayName("a non-ASCII subject is RFC 2047 encoded and an HTML body is declared as such")
     void encodesANonAsciiSubject() throws Exception {
         AtomResult run = atom.input("BUILD_NUMBER", "7")

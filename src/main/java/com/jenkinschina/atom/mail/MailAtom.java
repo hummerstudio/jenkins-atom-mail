@@ -48,8 +48,14 @@ public class MailAtom implements AtomTask {
             return AtomResult.error(ErrorType.USER, 40002, "no SMTP host: set 'smtpHost'");
         }
 
-        String user = orEmpty(context.getSecret("user"));
-        String password = orEmpty(context.getSecret("password"));
+        // Two spellings existed while mail and mail-ext were separate atoms, and a value may arrive as a plain input or
+        // as a resolved secret depending on how the job binds it — accept all four paths, smtp* first.
+        String user = firstNonBlank(
+                firstNonBlank(orEmpty(context.getParam("smtpUser", "")), orEmpty(context.getParam("user", ""))),
+                firstNonBlank(orEmpty(context.getSecret("smtpUser")), orEmpty(context.getSecret("user"))));
+        String password = firstNonBlank(
+                firstNonBlank(orEmpty(context.getParam("smtpPassword", "")), orEmpty(context.getParam("password", ""))),
+                firstNonBlank(orEmpty(context.getSecret("smtpPassword")), orEmpty(context.getSecret("password"))));
         if (from.isBlank()) {
             from = user.isBlank() ? "jenkins@localhost" : user;
         }
@@ -346,5 +352,10 @@ public class MailAtom implements AtomTask {
 
     private static String orEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    /** The first value that is not blank: mail-ext's parameter names are accepted alongside mail's original ones. */
+    private static String firstNonBlank(String first, String second) {
+        return first != null && !first.isBlank() ? first : (second == null ? "" : second);
     }
 }
