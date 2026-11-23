@@ -110,6 +110,7 @@
     },
     "context": [
       "log"
-    ]
+    ],
+    "category": "notify"
   }
 }
